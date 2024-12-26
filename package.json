@@ -1,0 +1,34 @@
+{
+  "name": "peardeckterminal",
+  "version": "1.0.2",
+  "description": "A P2P file-sharing tool using Hyperswarm",
+  "main": "index.js",
+  "bin": {
+    "p2p-share": "./index.js"
+  },
+  "pear": {
+    "name": "peardeckterminal",
+    "type": "terminal"
+  },
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "pear run -d .",
+    "test": "brittle test/*.test.js",
+    "start": "node index.js"
+  },
+  "devDependencies": {
+    "brittle": "^3.0.0",
+    "pear-interface": "^1.0.0"
+  },
+  "dependencies": {
+    "b4a": "^1.6.7",
+    "bare-fs": "^4.0.1",
+    "bare-os": "^3.3.0",
+    "bare-process": "^4.0.0",
+    "bare-readline": "^1.0.6",
+    "bare-tty": "^5 .0.1",
+    "hypercore-crypto": "^3.4.2",
+    "hyperswarm": "^4.8.4"
+  }
+}
