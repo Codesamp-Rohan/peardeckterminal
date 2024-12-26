@@ -92,6 +92,6 @@ This project is licensed under the [MIT License](./LICENSE).
 
 ## **Contact**  
 Have questions or suggestions? Reach out!  
-- **Email:** rohanchaudhary.bkbiet2022@example.com  
+- **Email:** rohanchaudhary.bkbiet2022@gmail.com  
 - **LinkedIn:** (https://www.linkedin.com/in/rohan-chaudhary-399742255)
-- **GitHub Issues:** [Open an issue](https://github.com/Codesamp-Rohan/PearDeck/issues)  
+- **GitHub Issues:** [Open an issue](https://github.com/Codesamp-Rohan/peardeckterminal/issues)  
