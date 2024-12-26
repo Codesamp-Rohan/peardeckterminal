@@ -61,7 +61,7 @@ PearDeckTerminal is a lightweight and innovative peer-to-peer presentation shari
 ---
 
 ## **Steps to Stage and Seed the app to share with others.**  
-  Please do install Pear in your system, for more [docs.pears.com]
+  Please do install Pear in your system, for more [https://docs.pears.com]
 1. **Stage the App:**  
    ```bash
    pear stage dev
