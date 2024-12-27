@@ -1,65 +1,68 @@
 #!/usr/bin/env node
 
-/** @typedef {import('pear-interface')} */ 
-import Hyperswarm from 'hyperswarm';   
-import b4a from 'b4a';                
+import Hyperswarm from 'hyperswarm';
+import b4a from 'b4a';
 import crypto from 'hypercore-crypto';
-import readline from 'bare-readline'; 
-import tty from 'bare-tty';           
-import fs from 'bare-fs'; 
+import readline from 'readline';
+import fs from 'fs';
+import process from 'process';
 
 const CHUNK_SIZE = 16 * 1024 * 1024; // 16MB
 const receivedFiles = {};
 
-const { teardown, config, updates } = Pear;
-const key = config.args.pop();       
-const shouldCreateSwarm = !key;      
+const key = process.argv[2];
+const shouldCreateSwarm = !key;
 const swarm = new Hyperswarm();
 
-teardown(() => swarm.destroy());
-// updates(() => Pear.reload());
-
-const rl = readline.createInterface({
-  input: new tty.ReadStream(0),
-  output: new tty.WriteStream(1)
+// Teardown on exit
+process.on('SIGINT', async () => {
+  await swarm.destroy();
+  process.exit();
 });
 
-swarm.on('connection', peer => {
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+swarm.on('connection', (peer) => {
   const name = b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6);
   console.log(`[info] New peer joined: ${name}`);
-  peer.on('data', data => handleIncomingFile(data, name));
-  peer.on('error', e => console.log(`Connection error: ${e}`));
+  peer.on('data', (data) => handleIncomingFile(data, name));
+  peer.on('error', (e) => console.log(`Connection error: ${e}`));
 });
 
 swarm.on('update', () => {
   console.log(`[info] Number of connections is now ${swarm.connections.size}`);
 });
 
-if (shouldCreateSwarm) {
-  await createFileSharingRoom();
-} else {
-  await joinFileSharingRoom(key);
-}
-
-rl.input.setMode(tty.constants.MODE_RAW);
-rl.on('line', async line => {
-  if (line.startsWith('/send')) {
-    const filePath = line.split(' ')[1];
-    if (filePath) {
-      await sendFile(filePath);
-    } else {
-      console.log(`[error] Usage: /send <file-path>`);
-    }
+(async () => {
+  if (shouldCreateSwarm) {
+    await createFileSharingRoom();
   } else {
-    console.log(`[error] Invalid command. Use /send <file-path> to send a file.`);
+    await joinFileSharingRoom(key);
   }
-  rl.prompt();
-});
-rl.prompt();
 
-rl.on('close', () => {
-  process.kill(process.pid, 'SIGINT');
-});
+  rl.on('line', async (line) => {
+    if (line.startsWith('/send')) {
+      const filePath = line.split(' ')[1];
+      if (filePath) {
+        await sendFile(filePath);
+      } else {
+        console.log(`[error] Usage: /send <file-path>`);
+      }
+    } else {
+      console.log(`[error] Invalid command. Use /send <file-path> to send a file.`);
+    }
+    rl.prompt();
+  });
+
+  rl.on('close', () => {
+    process.kill(process.pid, 'SIGINT');
+  });
+
+  rl.prompt();
+})();
 
 async function createFileSharingRoom() {
   const topicBuffer = crypto.randomBytes(32);
@@ -67,34 +70,36 @@ async function createFileSharingRoom() {
   const topic = b4a.toString(topicBuffer, 'hex');
   console.log(`[info] Created new file-sharing room: ${topic}`);
 }
+
 async function joinFileSharingRoom(topicStr) {
   const topicBuffer = b4a.from(topicStr, 'hex');
   await joinSwarm(topicBuffer);
   console.log(`[info] Joined file-sharing room`);
 }
+
 async function joinSwarm(topicBuffer) {
   const discovery = swarm.join(topicBuffer, { client: true, server: true });
   await discovery.flushed();
 }
+
 async function sendFile(filePath) {
-  let payload;
   try {
     const fileBuffer = fs.readFileSync(filePath);
     const fileName = filePath.split('/').pop();
-    const totalChunks = Math.ceil(fileBuffer.length/CHUNK_SIZE);
+    const totalChunks = Math.ceil(fileBuffer.length / CHUNK_SIZE);
 
-    for(let i=0;i<totalChunks;i++){
-      const chunk = fileBuffer.slice(i*CHUNK_SIZE, (i+1) * CHUNK_SIZE);
-      payload = JSON.stringify({
+    for (let i = 0; i < totalChunks; i++) {
+      const chunk = fileBuffer.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+      const payload = JSON.stringify({
         fileName,
         chunk: chunk.toString('base64'),
         index: i,
         total: totalChunks,
       });
-    }
 
-    for (const peer of [...swarm.connections]) {
-      peer.write(b4a.from(payload));
+      for (const peer of [...swarm.connections]) {
+        peer.write(b4a.from(payload));
+      }
     }
     console.log(`[info] File "${fileName}" sent to all peers.`);
   } catch (error) {
@@ -121,7 +126,6 @@ function handleIncomingFile(data, peerName) {
     if (!fileInfo.completed) {
       const chunkBuffer = b4a.from(chunk, 'base64');
 
-      // Write the chunk directly to the file
       fileInfo.writeStream.write(chunkBuffer, () => {
         fileInfo.received++;
         console.log(
@@ -142,4 +146,3 @@ function handleIncomingFile(data, peerName) {
     console.error(`[error] Failed to handle incoming file: ${error.message}`);
   }
 }
-
