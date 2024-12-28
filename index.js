@@ -6,11 +6,11 @@ import b4a from 'b4a';
 import crypto from 'hypercore-crypto';
 import fs from 'fs';
 import process from 'process';
-import { timeStamp } from 'console';
 
 const program = new Command();
 const CHUNK_SIZE = 1024 * 1024; // 1MB
 const receivedFiles = {};
+let peers = [];
 
 const swarm = new Hyperswarm();
 let currentTopic;
@@ -25,8 +25,10 @@ process.on('SIGINT', async () => {
 swarm.on('connection', (peer) => {
   const name = b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6);
   console.log(`[info] New peer joined: ${name}`);
+  peers = addPeer(name);
   peer.on('data', (data) => handleIncomingFile(data, name));
   peer.on('error', (e) => console.log(`Connection error: ${e}`));
+  peer.on('close', () => removePeer(name)); // Handle peer disconnection
   startInteractiveMode();
 });
 
@@ -88,7 +90,7 @@ async function sendFile(filePath) {
 function handleIncomingFile(data, peerName) {
   try {
     const parsedData = JSON.parse(data.toString());
-    if(parsedData.type === 'chat'){
+    if (parsedData.type === 'chat') {
       console.log(`[${formatTime(parsedData.timestamp)}] ${peerName}: ${parsedData.message}`);
       return;
     }
@@ -133,7 +135,13 @@ function startInteractiveMode() {
   if (interactiveModeActive) return;
   interactiveModeActive = true;
 
-  console.log(`[info] Interactive mode enabled. Use /send <file-path> to send files.`);
+  console.log(`
+    [info] 
+    Interactive mode enabled,
+    /send <file-path>                     to send files.
+    /chat <message>                       to send message.
+    /peers                                to show connected peers except you.
+    `);
 
   process.stdin.on('data', async (data) => {
     const input = data.toString().trim();
@@ -144,28 +152,49 @@ function startInteractiveMode() {
       } else {
         console.log(`[error] Usage: /send <file-path>`);
       }
-    } else if(input.startsWith('/chat')){
+    } else if (input.startsWith('/chat')) {
       const message = input.slice(6).trim();
-      if(message){
+      if (message) {
         sendMessage(message);
       } else {
         console.log(`[error] Usage: /chat <message>`);
       }
-    }else {
+    } else if (input.startsWith('/peers')) {
+      showPeers();
+    } else {
       console.log(`[error] Unknown command. Use /send, /chat`);
     }
   });
 }
 
-function sendMessage(message){
+function addPeer(name) {
+  if (!peers.includes(name)) {
+    peers.push(name);
+  }
+  return peers;
+}
+
+function removePeer(name) {
+  peers = peers.filter(peer => peer !== name);
+  console.log(`[info] Peer ${name} disconnected.`);
+}
+
+function showPeers() {
+  console.log(`Connected peers:`);
+  peers.forEach((peer, index) => {
+    console.log(`${index + 1}. ${peer}`);
+  });
+}
+
+function sendMessage(message) {
   const timestamp = Date.now();
   const payload = JSON.stringify({
     type: 'chat',
     message,
     timestamp,
-  })
+  });
 
-  for(const peer of [...swarm.connections]){
+  for (const peer of [...swarm.connections]) {
     peer.write(b4a.from(payload));
   }
   console.log(`[${formatTime(timestamp)}] You: ${message}`);
@@ -179,13 +208,14 @@ Usage:
   peardeckterminal --help                    Show this help message
   /send <file-path>                          Send a file to all connected peers
   /chat <message>                            Send chat between the peers
+  /peers                                     List connected peers
 `);
 }
 
 program
   .name('peardeckterminal')
   .description('A Peer to Peer file-sharing tool.')
-  .version('1.2.2');
+  .version('1.2.3');
 
 program
   .option('--create', 'Create a file-sharing room')
@@ -210,7 +240,6 @@ function formatTime(timestamp) {
   const date = new Date(timestamp);
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
   return `${hours.toString().padStart(2, '0')}:${minutes
     .toString()
     .padStart(2, '0')}`;
