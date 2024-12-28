@@ -6,6 +6,7 @@ import b4a from 'b4a';
 import crypto from 'hypercore-crypto';
 import fs from 'fs';
 import process from 'process';
+import { timeStamp } from 'console';
 
 const program = new Command();
 const CHUNK_SIZE = 1024 * 1024; // 1MB
@@ -86,6 +87,12 @@ async function sendFile(filePath) {
 
 function handleIncomingFile(data, peerName) {
   try {
+    const parsedData = JSON.parse(data.toString());
+    if(parsedData.type === 'chat'){
+      console.log(`[${formatTime(parsedData.timestamp)}] ${peerName}: ${parsedData.message}`);
+      return;
+    }
+
     const { fileName, chunk, index, total } = JSON.parse(data.toString());
     const savePath = `./received_${fileName}`;
 
@@ -137,10 +144,31 @@ function startInteractiveMode() {
       } else {
         console.log(`[error] Usage: /send <file-path>`);
       }
-    } else {
-      console.log(`[error] Invalid command. Use /send <file-path> to send a file.`);
+    } else if(input.startsWith('/chat')){
+      const message = input.slice(6).trim();
+      if(message){
+        sendMessage(message);
+      } else {
+        console.log(`[error] Usage: /chat <message>`);
+      }
+    }else {
+      console.log(`[error] Unknown command. Use /send, /chat`);
     }
   });
+}
+
+function sendMessage(message){
+  const timestamp = Date.now();
+  const payload = JSON.stringify({
+    type: 'chat',
+    message,
+    timestamp,
+  })
+
+  for(const peer of [...swarm.connections]){
+    peer.write(b4a.from(payload));
+  }
+  console.log(`[${formatTime(timestamp)}] You: ${message}`);
 }
 
 async function showHelp() {
@@ -150,12 +178,13 @@ Usage:
   peardeckterminal --join <seed/topic>       Join an existing room
   peardeckterminal --help                    Show this help message
   /send <file-path>                          Send a file to all connected peers
+  /chat <message>                            Send chat between the peers
 `);
 }
 
 program
   .name('peardeckterminal')
-  .description('A P2P file-sharing tool using Hyperswarm')
+  .description('A Peer to Peer file-sharing tool.')
   .version('1.2.1');
 
 program
@@ -175,4 +204,14 @@ program.parse(process.argv);
 
 if (!process.argv.slice(2).length) {
   showHelp();
+}
+
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}`;
 }
