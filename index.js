@@ -185,7 +185,7 @@ Usage:
 program
   .name('peardeckterminal')
   .description('A Peer to Peer file-sharing tool.')
-  .version('1.2.1');
+  .version('1.2.2');
 
 program
   .option('--create', 'Create a file-sharing room')
