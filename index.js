@@ -8,7 +8,7 @@ import fs from 'fs';
 import process from 'process';
 
 const program = new Command();
-const CHUNK_SIZE = 1024 * 1024; // 1MB
+const CHUNK_SIZE = 10 * 1024 * 1024;
 const receivedFiles = {};
 let peers = [];
 
@@ -16,7 +16,6 @@ const swarm = new Hyperswarm();
 let currentTopic;
 let interactiveModeActive = false;
 
-// Teardown on exit
 process.on('SIGINT', async () => {
   await swarm.destroy();
   process.exit();
@@ -28,7 +27,7 @@ swarm.on('connection', (peer) => {
   peers = addPeer(name);
   peer.on('data', (data) => handleIncomingFile(data, name));
   peer.on('error', (e) => console.log(`Connection error: ${e}`));
-  peer.on('close', () => removePeer(name)); // Handle peer disconnection
+  peer.on('close', () => removePeer(name));
   startInteractiveMode();
 });
 
@@ -114,7 +113,6 @@ function handleIncomingFile(data, peerName) {
 
       console.log(`[info] Received chunk ${index + 1}/${total} of file "${fileName}" from ${peerName}.`);
 
-      // Check if all chunks are received
       if (fileInfo.received.filter(Boolean).length === fileInfo.total) {
         for (const bufferedChunk of fileInfo.received) {
           fileInfo.writeStream.write(bufferedChunk);
@@ -215,7 +213,7 @@ Usage:
 program
   .name('peardeckterminal')
   .description('A Peer to Peer file-sharing tool.')
-  .version('1.2.3');
+  .version('1.2.4');
 
 program
   .option('--create', 'Create a file-sharing room')
