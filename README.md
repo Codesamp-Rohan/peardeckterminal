@@ -15,74 +15,33 @@ PearDeckTerminal is a lightweight and innovative peer-to-peer presentation shari
 
 ---
 
-## **Installation**  
-
-### **Prerequisites**  
-- Node.js (v16 or later)  
-- Git  
-
-### **Steps**  
-1. Clone the repository:  
-   ```bash
-   git clone https://github.com/Codesamp-Rohan/peardeckterminal.git
-   ```
-2. Navigate to the project directory:  
-   ```bash
-   cd peardeckterminal
-   ```
-3. Install dependencies:  
-   ```bash
-   npm install
-   ```
-4. Run the app:  
-   ```bash
-   npm run dev
-   ```
-
----
-
-## **Usage**  
+## **Installation**
 1. **To Create a Room:**  
-   It will generate a key which needs to be shared with others only at your own risk ☢️
-   ```bash
-   npm run dev
-   ```  
-
-2. **To Join a Room:**  
-   ```bash
-   npm run dev <shared-key>
-   ```    
-
-3. **Share File:**  
-   ```bash
-   /send path/to/that/file
-   ```    
-
----
-
-## **Steps to Stage and Seed the app to share with others.**  
-  Please do install Pear in your system, for more [https://docs.pears.com]
-1. **Stage the App:**  
-   ```bash
-   pear stage dev
-   ```  
-
-2. **Seed the App:**  
-   ```bash
-   pear seed dev
-   ```    
-
-3. **Share File:**  
-   ```bash
-   pear run <generated-pear-key>
-   ```    
+```bash
+npm i peardeckterminal -g
+```
+2. **To Create a Room**
+```bash
+peardeckterminal --create
+```
+3. **To Join a Room**
+```bash
+peardeckterminal --join <shared-key>
+```
+4. **To Share a File**
+```bash
+/send ../path/to/that/file
+```
+5. **To Display Help**
+```bash
+peardeckterminal --help
+```
 
 ---
 
 ## **Technologies Used**  
-- **Frontend:** HTML, CSS, JavaScript  
 - **Backend:** Node.js  
-- **P2P Libraries:** Hyperswarm, Hypercore-Crypto, b4a , bare-readline, bare-tty, bare-fs
+- **P2P Libraries:** Hyperswarm, Hypercore-Crypto
 
 ---
 
@@ -104,13 +63,8 @@ We welcome contributions to PearDeck! Here's how you can contribute:
 
 ---
 
-## **License**  
-This project is licensed under the [MIT License](./LICENSE).
-
----
-
 ## **Contact**  
 Have questions or suggestions? Reach out!  
 - **Email:** rohanchaudhary.bkbiet2022@gmail.com  
-- **LinkedIn:** (https://www.linkedin.com/in/rohan-chaudhary-399742255)
+- **LinkedIn:** [Rohan Chaudhary](https://www.linkedin.com/in/rohan-chaudhary-399742255)
 - **GitHub Issues:** [Open an issue](https://github.com/Codesamp-Rohan/peardeckterminal/issues)  

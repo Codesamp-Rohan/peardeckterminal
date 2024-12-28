@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 
+import { Command } from 'commander';
 import Hyperswarm from 'hyperswarm';
 import b4a from 'b4a';
 import crypto from 'hypercore-crypto';
-import readline from 'readline';
 import fs from 'fs';
 import process from 'process';
 
+const program = new Command();
 const CHUNK_SIZE = 16 * 1024 * 1024; // 16MB
 const receivedFiles = {};
 
-const key = process.argv[2];
-const shouldCreateSwarm = !key;
 const swarm = new Hyperswarm();
+let currentTopic;
+let interactiveModeActive = false;
 
 // Teardown on exit
 process.on('SIGINT', async () => {
@@ -20,61 +21,32 @@ process.on('SIGINT', async () => {
   process.exit();
 });
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 swarm.on('connection', (peer) => {
   const name = b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6);
   console.log(`[info] New peer joined: ${name}`);
   peer.on('data', (data) => handleIncomingFile(data, name));
   peer.on('error', (e) => console.log(`Connection error: ${e}`));
+  startInteractiveMode();
 });
 
 swarm.on('update', () => {
   console.log(`[info] Number of connections is now ${swarm.connections.size}`);
 });
 
-(async () => {
-  if (shouldCreateSwarm) {
-    await createFileSharingRoom();
-  } else {
-    await joinFileSharingRoom(key);
-  }
-
-  rl.on('line', async (line) => {
-    if (line.startsWith('/send')) {
-      const filePath = line.split(' ')[1];
-      if (filePath) {
-        await sendFile(filePath);
-      } else {
-        console.log(`[error] Usage: /send <file-path>`);
-      }
-    } else {
-      console.log(`[error] Invalid command. Use /send <file-path> to send a file.`);
-    }
-    rl.prompt();
-  });
-
-  rl.on('close', () => {
-    process.kill(process.pid, 'SIGINT');
-  });
-
-  rl.prompt();
-})();
-
 async function createFileSharingRoom() {
   const topicBuffer = crypto.randomBytes(32);
   await joinSwarm(topicBuffer);
-  const topic = b4a.toString(topicBuffer, 'hex');
-  console.log(`[info] Created new file-sharing room: ${topic}`);
+  currentTopic = b4a.toString(topicBuffer, 'hex');
+  console.log(`[info] Created new file-sharing room: ${currentTopic}`);
+  startInteractiveMode();
 }
 
 async function joinFileSharingRoom(topicStr) {
   const topicBuffer = b4a.from(topicStr, 'hex');
   await joinSwarm(topicBuffer);
+  currentTopic = topicStr;
   console.log(`[info] Joined file-sharing room`);
+  startInteractiveMode();
 }
 
 async function joinSwarm(topicBuffer) {
@@ -145,4 +117,59 @@ function handleIncomingFile(data, peerName) {
   } catch (error) {
     console.error(`[error] Failed to handle incoming file: ${error.message}`);
   }
+}
+
+function startInteractiveMode() {
+  if (interactiveModeActive) return;
+  interactiveModeActive = true;
+
+  console.log(`[info] Interactive mode enabled. Use /send <file-path> to send files.`);
+
+  process.stdin.on('data', async (data) => {
+    const input = data.toString().trim();
+    if (input.startsWith('/send')) {
+      const filePath = input.split(' ')[1];
+      if (filePath) {
+        await sendFile(filePath);
+      } else {
+        console.log(`[error] Usage: /send <file-path>`);
+      }
+    } else {
+      console.log(`[error] Invalid command. Use /send <file-path> to send a file.`);
+    }
+  });
+}
+
+async function showHelp() {
+  console.log(`
+Usage:
+  peardeckterminal --create                  Create a file-sharing room
+  peardeckterminal --join <seed/topic>       Join an existing room
+  peardeckterminal --help                    Show this help message
+  /send <file-path>                          Send a file to all connected peers
+`);
+}
+
+program
+  .name('peardeckterminal')
+  .description('A P2P file-sharing tool using Hyperswarm')
+  .version('1.0.9');
+
+program
+  .option('--create', 'Create a file-sharing room')
+  .option('--join <topic>', 'Join a file-sharing room using a topic')
+  .action(async (options) => {
+    if (options.create) {
+      await createFileSharingRoom();
+    } else if (options.join) {
+      await joinFileSharingRoom(options.join);
+    } else {
+      await showHelp();
+    }
+  });
+
+program.parse(process.argv);
+
+if (!process.argv.slice(2).length) {
+  showHelp();
 }
