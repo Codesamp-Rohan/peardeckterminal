@@ -8,7 +8,7 @@ import fs from 'fs';
 import process from 'process';
 
 const program = new Command();
-const CHUNK_SIZE = 16 * 1024 * 1024; // 16MB
+const CHUNK_SIZE = 1024 * 1024; // 1MB
 const receivedFiles = {};
 
 const swarm = new Hyperswarm();
@@ -56,6 +56,11 @@ async function joinSwarm(topicBuffer) {
 
 async function sendFile(filePath) {
   try {
+    if (!fs.existsSync(filePath)) {
+      console.error(`[error] File does not exist: ${filePath}`);
+      return;
+    }
+
     const fileBuffer = fs.readFileSync(filePath);
     const fileName = filePath.split('/').pop();
     const totalChunks = Math.ceil(fileBuffer.length / CHUNK_SIZE);
@@ -88,31 +93,29 @@ function handleIncomingFile(data, peerName) {
       receivedFiles[fileName] = {
         writeStream: fs.createWriteStream(savePath),
         total,
-        received: 0,
+        received: [],
         completed: false,
       };
     }
 
     const fileInfo = receivedFiles[fileName];
-
     if (!fileInfo.completed) {
       const chunkBuffer = b4a.from(chunk, 'base64');
+      fileInfo.received[index] = chunkBuffer;
 
-      fileInfo.writeStream.write(chunkBuffer, () => {
-        fileInfo.received++;
-        console.log(
-          `[info] Received chunk ${index + 1}/${total} of file "${fileName}" from ${peerName}.`
-        );
+      console.log(`[info] Received chunk ${index + 1}/${total} of file "${fileName}" from ${peerName}.`);
 
-        if (fileInfo.received === fileInfo.total) {
-          fileInfo.writeStream.end();
-          fileInfo.completed = true;
-          console.log(
-            `[info] File "${fileName}" received completely from ${peerName}. Saved as "${savePath}".`
-          );
-          delete receivedFiles[fileName];
+      // Check if all chunks are received
+      if (fileInfo.received.filter(Boolean).length === fileInfo.total) {
+        for (const bufferedChunk of fileInfo.received) {
+          fileInfo.writeStream.write(bufferedChunk);
         }
-      });
+        fileInfo.writeStream.end();
+        fileInfo.completed = true;
+
+        console.log(`[info] File "${fileName}" received completely from ${peerName}. Saved as "${savePath}".`);
+        delete receivedFiles[fileName];
+      }
     }
   } catch (error) {
     console.error(`[error] Failed to handle incoming file: ${error.message}`);
@@ -153,7 +156,7 @@ Usage:
 program
   .name('peardeckterminal')
   .description('A P2P file-sharing tool using Hyperswarm')
-  .version('1.0.9');
+  .version('1.1.0');
 
 program
   .option('--create', 'Create a file-sharing room')
