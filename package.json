@@ -1,6 +1,6 @@
 {
   "name": "peardeckterminal",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A P2P file-sharing tool using Hyperswarm",
   "main": "index.js",
   "bin": {

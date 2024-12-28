@@ -16,7 +16,7 @@ PearDeckTerminal is a lightweight and innovative peer-to-peer presentation shari
 ---
 
 ## **Installation**
-1. **To Create a Room:**  
+1. **To install globally:**  
 ```bash
 npm i peardeckterminal -g
 ```
