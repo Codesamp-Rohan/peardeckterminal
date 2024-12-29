@@ -94,6 +94,11 @@ function handleIncomingFile(data, peerName) {
       return;
     }
 
+    if(parsedData.type === 'dm'){
+      console.log(`[DM][${formatTime(parsedData.timestamp)}] From ${peerName}: ${parsedData.message}`);
+      return;
+    }
+
     const { fileName, chunk, index, total } = JSON.parse(data.toString());
     const savePath = `./received_${fileName}`;
 
@@ -139,6 +144,7 @@ function startInteractiveMode() {
     /send <file-path>                     to send files.
     /chat <message>                       to send message.
     /peers                                to show connected peers except you.
+    /dm <peer-name> <message>            to send direct message to a specific peer.
     `);
 
   process.stdin.on('data', async (data) => {
@@ -159,8 +165,16 @@ function startInteractiveMode() {
       }
     } else if (input.startsWith('/peers')) {
       showPeers();
+    } else if (input.startsWith('/dm')){
+      const [_, peerName, ...messageParts] = input.split(' ');
+      const message = messageParts.join(' ');
+      if (peerName && message) {
+        sendDirectMessage(peerName, message);
+      } else {
+        console.log(`[error] Usage: /dm <peer-name> <message>`);
+      }
     } else {
-      console.log(`[error] Unknown command. Use /send, /chat`);
+      console.log(`[error] Unknown command. Use /send, /chat, /peers, /dm`);
     }
   });
 }
@@ -198,6 +212,28 @@ function sendMessage(message) {
   console.log(`[${formatTime(timestamp)}] You: ${message}`);
 }
 
+function sendDirectMessage(peerName, message) {
+  const peer = [...swarm.connections].find(
+    (peer) => b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6) === peerName
+  );
+
+  if (!peer) {
+    console.log(`[error] Peer "${peerName}" not found.`);
+    return;
+  }
+
+  const timestamp = Date.now();
+  const payload = JSON.stringify({
+    type: 'dm',
+    message,
+    timestamp,
+  });
+
+  peer.write(b4a.from(payload));
+  console.log(`[${formatTime(timestamp)}] To ${peerName}: ${message}`);
+}
+
+
 async function showHelp() {
   console.log(`
 Usage:
@@ -207,6 +243,7 @@ Usage:
   /send <file-path>                          Send a file to all connected peers
   /chat <message>                            Send chat between the peers
   /peers                                     List connected peers
+  /dm <peer-name> <message>                  to send direct message to a specific peer.
 `);
 }
 
