@@ -250,7 +250,7 @@ Usage:
 program
   .name('peardeckterminal')
   .description('A Peer to Peer file-sharing tool.')
-  .version('1.2.4');
+  .version('1.3.1');
 
 program
   .option('--create', 'Create a file-sharing room')
