@@ -6,6 +6,7 @@ import b4a from 'b4a';
 import crypto from 'hypercore-crypto';
 import fs from 'fs';
 import process from 'process';
+import { type } from 'os';
 
 const program = new Command();
 const CHUNK_SIZE = 64 * 1024;
@@ -70,6 +71,7 @@ async function sendFile(filePath) {
     for (let i = 0; i < totalChunks; i++) {
       const chunk = fileBuffer.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
       const payload = JSON.stringify({
+        type: 'terminal-file-chunk',
         fileName,
         chunk: chunk.toString('base64'),
         index: i,
@@ -79,6 +81,7 @@ async function sendFile(filePath) {
       for (const peer of [...swarm.connections]) {
         peer.write(b4a.from(payload));
       }
+      console.log(`[info] Sent chunk ${i + 1}/${totalChunks} of "${fileName}".`);
     }
     console.log(`[info] File "${fileName}" sent to all peers.`);
   } catch (error) {
@@ -104,6 +107,40 @@ function handleIncomingFile(data, peerName) {
       return;
     }
 
+    if(parsedData.type === 'gui-file-chunk'){
+      const {fileName, fileType, chunk, index, isLast} = parsedData;
+      if (!fileName || !chunk || index === undefined || isLast === undefined) {
+        console.error(`[error] Invalid gui-file-chunk received.`);
+        return;
+      }
+
+      const savePath = `./reveived_${fileName}`;
+
+    if (!receivedFiles[fileName]) {
+      receivedFiles[fileName] = {
+        writeStream: fs.createWriteStream(savePath),
+        totalChunks: [],
+        completed: false,
+      };
+    }
+    const fileInfo = receivedFiles[fileName];
+    fileInfo.totalChunks[index] = b4a.from(chunk, 'base64');
+    console.log(`[info] Received chunk ${index + 1} for ${fileName} from ${peerName}`);
+
+    if(isLast){
+      for(const chunkBuffer of fileInfo.totalChunks){
+        if(chunkBuffer){
+          fileInfo.writeStream.write(chunkBuffer);
+        }
+      }
+      fileInfo.writeStream.end();
+      fileInfo.completed = true;
+      console.log(`[info] File "${fileName}" received completely. Saved at "${savePath}".`);
+      delete receivedFiles[fileName];
+    }
+    }
+
+    if(parsedData.type === 'terminal-file-chunk'){
     const { fileName, chunk, index, total } = JSON.parse(data.toString());
     const savePath = `./received_${fileName}`;
 
@@ -134,6 +171,7 @@ function handleIncomingFile(data, peerName) {
         delete receivedFiles[fileName];
       }
     }
+  }
   } catch (error) {
     console.error(`[error] Failed to handle incoming file: ${error.message}`);
   }
@@ -256,7 +294,7 @@ Usage:
 program
   .name('peardeckterminal')
   .description('A Peer to Peer file-sharing tool.')
-  .version('1.4.1');
+  .version('1.5.0');
 
 program
   .option('--create', 'Create a file-sharing room')
