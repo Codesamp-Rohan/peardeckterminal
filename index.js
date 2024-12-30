@@ -8,7 +8,7 @@ import fs from 'fs';
 import process from 'process';
 
 const program = new Command();
-const CHUNK_SIZE = 10 * 1024 * 1024;
+const CHUNK_SIZE = 64 * 1024;
 const receivedFiles = {};
 let peers = [];
 
@@ -89,8 +89,13 @@ async function sendFile(filePath) {
 function handleIncomingFile(data, peerName) {
   try {
     const parsedData = JSON.parse(data.toString());
-    if (parsedData.type === 'chat') {
+    if (parsedData.type === 'tchat') {
       console.log(`[${formatTime(parsedData.timestamp)}] ${peerName}: ${parsedData.message}`);
+      return;
+    }
+
+    if(parsedData.type === 'chat'){
+      console.log(`[${formatTime(parsedData.timestamp)}] ${peerName}: ${parsedData.content}`);
       return;
     }
 
@@ -198,11 +203,12 @@ function showPeers() {
   });
 }
 
-function sendMessage(message) {
+function sendMessage(message, sender = "You") {
   const timestamp = Date.now();
   const payload = JSON.stringify({
-    type: 'chat',
+    type: 'tchat',
     message,
+    sender: sender,
     timestamp,
   });
 
@@ -250,7 +256,7 @@ Usage:
 program
   .name('peardeckterminal')
   .description('A Peer to Peer file-sharing tool.')
-  .version('1.3.1');
+  .version('1.4.1');
 
 program
   .option('--create', 'Create a file-sharing room')
